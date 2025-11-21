@@ -4,24 +4,24 @@
 
 // タイトル画面のステート（状態）
 enum TitleState {
-    STATE_TYPE_JP,          // 日本語タイトルをタイプ中
-    STATE_SHOW_JP,          // 日本語タイトルがすべて表示されている状態
-    STATE_DELETE_JP,        // 日本語タイトルを1文字ずつ削除している状態
-    STATE_BLANK_AFTER_JP,   // 日本語タイトルを消し終わったあとの空白状態
+    STATE_TYPE_JP,          // 日文打字中
+    STATE_SHOW_JP,          // 日文完整显示
+    STATE_DELETE_JP,        // 日文逐字删除
+    STATE_BLANK_AFTER_JP,   // 日文删完后的空白
 
-    STATE_TYPE_EN,          // 英語タイトルをタイプ中
-    STATE_SHOW_EN,          // 英語タイトルがすべて表示されている状態
-    STATE_DELETE_EN,        // 英語タイトルを1文字ずつ削除している状態
-    STATE_BLANK_AFTER_EN    // 英語タイトルを消し終わったあとの空白状態
+    STATE_TYPE_EN,          // 英文打字中
+    STATE_SHOW_EN,          // 英文完整显示
+    STATE_DELETE_EN,        // 英文逐字删除
+    STATE_BLANK_AFTER_EN    // 英文删完后的空白
 };
 
-// どの入力フィールドにフォーカスがあるか
+// 输入焦点是哪一块
 enum FocusTarget {
-    FOCUS_SEED,             // Seed phrase の入力欄
-    FOCUS_HINT              // 各行の Hint 入力欄
+    FOCUS_SEED,             // Seed phrase 输入框
+    FOCUS_HINT              // 某一行 Hint 输入
 };
 
-// Hint 1行分のデータ
+// 一行 Hint 的数据
 struct HintField {
     char text[128];
     int  len;
@@ -37,32 +37,32 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     ChangeWindowMode(TRUE);
     SetGraphMode(SCREEN_W, SCREEN_H, 32);
 
-    // ウィンドウが大きすぎると感じた場合は、この行で表示サイズだけ縮小できる（内部レイアウトには影響しない）
+    // 如果你觉得窗口太大，这行可以缩放窗口显示，不影响内部布局：
     // SetWindowSizeExtendRate(0.7f);
 
     if (DxLib_Init() == -1) return -1;
     SetDrawScreen(DX_SCREEN_BACK);
 
-    // ========= 色設定 =========
-    const int COL_BG = GetColor(10, 12, 16);       // 背景色
-    const int COL_PANEL = GetColor(34, 36, 56);       // パネル背景
-    const int COL_BORDER = GetColor(110, 120, 150);  // 枠線
-    const int COL_ACCENT = GetColor(140, 210, 255);  // アクセントカラー
-    const int COL_TEXT = GetColor(230, 235, 240);    // 通常テキスト
-    const int COL_PLACE = GetColor(160, 170, 190);   // プレースホルダー文字
+    // ========= 颜色 =========
+    const int COL_BG = GetColor(10, 12, 16);       // 背景
+    const int COL_PANEL = GetColor(34, 36, 56);       // 面板
+    const int COL_BORDER = GetColor(110, 120, 150);
+    const int COL_ACCENT = GetColor(140, 210, 255);
+    const int COL_TEXT = GetColor(230, 235, 240);
+    const int COL_PLACE = GetColor(160, 170, 190);
     const int COL_W = GetColor(255, 255, 255);
-    const int COL_INPUT_BG = GetColor(0, 0, 0);      // 入力欄の背景
-    const int COL_SCROLL_BG = GetColor(60, 65, 85);  // スクロールバー背景
-    const int COL_SCROLL_BAR = GetColor(140, 150, 190);  // スクロールバー本体
+    const int COL_INPUT_BG = GetColor(0, 0, 0);
+    const int COL_SCROLL_BG = GetColor(60, 65, 85);
+    const int COL_SCROLL_BAR = GetColor(140, 150, 190);
 
-    // ========= フォント設定 =========
+    // ========= 字体 =========
     int fontTitle = CreateFontToHandle(NULL, 96, 4, DX_FONTTYPE_ANTIALIASING_8X8);
     int fontMain = CreateFontToHandle(NULL, 32, 4, DX_FONTTYPE_ANTIALIASING_8X8);
     int fontSmall = CreateFontToHandle(NULL, 24, 4, DX_FONTTYPE_ANTIALIASING_8X8);
 
     int titleFontSize = GetFontSizeToHandle(fontTitle);
 
-    // ========= タイトルのアニメーション設定 =========
+    // ========= 标题动画 =========
     const char* titleJP = "オフライン暗号室";
     const char* titleEN = "ColdVault";
 
@@ -75,7 +75,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     int visibleJPBytes = 0;
     int visibleENChars = 0;
 
-    // 5秒 = 300フレーム（60fps 前提）
+    // 5 秒 = 300 帧（60fps）
     const int STEP_JP = 6;
     const int STEP_EN = 5;
     const int STEP_DEL_JP = 4;
@@ -87,7 +87,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     int cursorFrameTitle = 0;
     const int CURSOR_INTERVAL = 30;
 
-    // ========= Seed 入力欄 =========
+    // ========= Seed 输入 =============
     char seedText[256] = { 0 };
     int seedLen = 0;
 
@@ -95,7 +95,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     const int MIN_WORD = 1;
     const int MAX_WORD = 16;
 
-    // ========= Hint リスト（スクロール可能） =========
+    // ========= Hint 列表（可滚动） =========
     const int MAX_HINTS = 64;
     HintField hints[MAX_HINTS];
     int hintCount = 1;
@@ -109,7 +109,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
     int hintScrollMax = 0;
     const int HINT_SCROLL_STEP = 40;
 
-    // ========= 入力フォーカス管理 =========
+    // ========= 输入焦点 =========
     FocusTarget focusTarget = FOCUS_SEED;
     int focusHintIndex = 0;
 
@@ -143,7 +143,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         frameCounter++;
         cursorFrameTitle++;
 
-        // ================= タイトルアニメーションのロジック =================
+        // ================= 标题动画逻辑 =================
         switch (state) {
 
         case STATE_TYPE_JP:
@@ -236,7 +236,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             break;
         }
 
-        // ================= レイアウト計算 =================
+        // ================= 布局计算 =================
 
         const int titleX = 40;
         const int titleY = 40;
@@ -309,7 +309,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         int helpTextX = panelX + paddingX;
         int helpTextY = panelY + panelH - paddingY - 24;
 
-        // ================= マウスによるフォーカス切り替え =================
+        // ================= 鼠标焦点切换 =================
         if (mouseClick) {
             if (mouseX >= seedInputX && mouseX <= seedInputX + seedInputW &&
                 mouseY >= seedInputY && mouseY <= seedInputY + seedInputH) {
@@ -346,7 +346,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             }
         }
 
-        // ================= テキスト入力処理 =================
+        // ================= 文本输入 =================
 
         char* activeBuf;
         int* activeLen;
@@ -371,7 +371,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             }
             };
 
-        // Backspace キー
+        // Backspace
         if (keyState[KEY_INPUT_BACK] && !prevKeyState[KEY_INPUT_BACK]) {
             if (*activeLen > 0) {
                 (*activeLen)--;
@@ -379,12 +379,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             }
         }
 
-        // スペースキー
+        // 空格
         if (keyState[KEY_INPUT_SPACE] && !prevKeyState[KEY_INPUT_SPACE]) {
             pushChar(' ');
         }
 
-        // 数字キー 0〜9
+        // 数字 0–9
         if (keyState[KEY_INPUT_0] && !prevKeyState[KEY_INPUT_0]) pushChar('0');
         if (keyState[KEY_INPUT_1] && !prevKeyState[KEY_INPUT_1]) pushChar('1');
         if (keyState[KEY_INPUT_2] && !prevKeyState[KEY_INPUT_2]) pushChar('2');
@@ -396,7 +396,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         if (keyState[KEY_INPUT_8] && !prevKeyState[KEY_INPUT_8]) pushChar('8');
         if (keyState[KEY_INPUT_9] && !prevKeyState[KEY_INPUT_9]) pushChar('9');
 
-        // 英字キー A〜Z（小文字に変換して追加）
+        // 字母 A–Z（转小写）
         if (keyState[KEY_INPUT_A] && !prevKeyState[KEY_INPUT_A]) pushChar('a');
         if (keyState[KEY_INPUT_B] && !prevKeyState[KEY_INPUT_B]) pushChar('b');
         if (keyState[KEY_INPUT_C] && !prevKeyState[KEY_INPUT_C]) pushChar('c');
@@ -426,7 +426,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
         cursorFrameInput++;
 
-        // Words 値の増減処理
+        // Words 变化
         if (mouseClick &&
             mouseX >= minusX && mouseX <= minusX + minusW &&
             mouseY >= minusY && mouseY <= minusY + minusH) {
@@ -439,12 +439,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             if (wordCount < MAX_WORD) wordCount++;
         }
 
-        // ================= 画面の描画 =================
+        // ================= 绘制画面 =================
 
         ClearDrawScreen();
         DrawBox(0, 0, SCREEN_W, SCREEN_H, COL_BG, TRUE);
 
-        // タイトルの描画
+        // 标题动画
         {
             char buf[64] = { 0 };
             bool cursorOn = ((cursorFrameTitle / CURSOR_INTERVAL) % 2 == 0);
@@ -482,11 +482,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             }
         }
 
-        // メインパネル
+        // 主面板
         DrawBox(panelX, panelY, panelX + panelW, panelY + panelH, COL_PANEL, TRUE);
         DrawBox(panelX, panelY, panelX + panelW, panelY + panelH, COL_BORDER, FALSE);
 
-        // Seed phrase ラベルと入力欄
+        // Seed phrase
         DrawStringToHandle(seedLabelX, seedLabelY, "Seed phrase", COL_PLACE, fontSmall);
 
         int seedBorderColor = (focusTarget == FOCUS_SEED ? COL_ACCENT : COL_BORDER);
@@ -515,7 +515,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             }
         }
 
-        // Words 行（増減ボタンと値）
+        // Words 行
         DrawStringToHandle(wordsLabelX, wordsLabelY, "Words", COL_PLACE, fontSmall);
 
         int mColor = COL_BORDER;
@@ -540,7 +540,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         sprintf_s(countBuf, sizeof(countBuf), "%d", wordCount);
         DrawStringToHandle(valueX, valueY, countBuf, COL_TEXT, fontMain);
 
-        // Hints ラベルと追加ボタン
+        // Hints 标题 + 添加按钮
         DrawStringToHandle(hintsLabelX, hintsLabelY, "Hints", COL_PLACE, fontSmall);
 
         int addColor = COL_BORDER;
@@ -563,12 +563,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             DrawStringToHandle(sx, sy, sym, addColor, fontMain);
         }
 
-        // Hint のスクロール領域の背景
+        // Hint 滚动区域背景
         DrawBox(hintsViewX, hintsViewY,
             hintsViewX + hintsViewW, hintsViewY + hintsViewH,
             COL_INPUT_BG, TRUE);
 
-        // Hint 行の描画
+        // 绘制 Hint 行
         for (int i = 0; i < hintCount; i++) {
             int rowY = hintsViewY + i * hintRowFullH - hintScrollOffset;
 
@@ -576,7 +576,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             if (rowY > hintsViewY + hintsViewH) continue;
 
             int rowX = hintsViewX;
-            int rowW = hintsViewW - 20; // スクロールバー分の余白
+            int rowW = hintsViewW - 20; // scroll bar space
 
             int borderColor =
                 (focusTarget == FOCUS_HINT && focusHintIndex == i)
@@ -610,7 +610,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
             }
         }
 
-        // スクロールバー
+        // 滚动条
         if (hintScrollMax > 0) {
             int barX1 = hintsViewX + hintsViewW - 12;
             int barX2 = hintsViewX + hintsViewW - 4;
