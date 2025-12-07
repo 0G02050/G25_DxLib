@@ -1,4 +1,5 @@
 #include "DxLib.h"
+#include "PasswordTools.h"
 #include <string.h>
 #include <stdio.h>
 #include <string>
@@ -6,56 +7,6 @@
 #include <random>
 #include <functional>
 #include <time.h> // 用于生成唯一文件名
-
-// ================= 全局工具函数 =================
-
-void GeneratePassword(const char* seedStr, const char* extraHint, int length, char* outBuffer, int outBufferSize) {
-    std::string rawSource = std::string(seedStr) + extraHint;
-    std::hash<std::string> hasher;
-    size_t seedValue = hasher(rawSource);
-    std::mt19937 gen((unsigned int)seedValue);
-
-    const std::string charset =
-        "abcdefghijkmnpqrstuvwxyz"
-        "ABCDEFGHJKLMNPQRSTUVWXYZ"
-        "23456789!@#$%&*+?";
-
-    std::uniform_int_distribution<> dist(0, (int)charset.size() - 1);
-    int actualLen = (length < outBufferSize - 1) ? length : outBufferSize - 1;
-    for (int i = 0; i < actualLen; i++) outBuffer[i] = charset[dist(gen)];
-    outBuffer[actualLen] = '\0';
-}
-
-void DrawFakeQRCode(int x, int y, int size, const char* data) {
-    int cellSize = size / 21;
-    std::string s = data;
-    std::mt19937 gen((unsigned int)std::hash<std::string>{}(s));
-    std::uniform_int_distribution<> dist(0, 100);
-
-    // 绘制白色背景，留一点边距
-    DrawBox(x - 5, y - 5, x + size + 5, y + size + 5, GetColor(255, 255, 255), TRUE);
-
-    int padding = 0;
-    for (int r = 0; r < 21; r++) {
-        for (int c = 0; c < 21; c++) {
-            bool drawBlack = false;
-            if ((r < 7 && c < 7) || (r < 7 && c > 13) || (r > 13 && c < 7)) {
-                if (r == 0 || r == 6 || c == 0 || c == 6 || c == 14 || c == 20 || r == 14 || r == 20) drawBlack = true;
-                if (r >= 2 && r <= 4 && c >= 2 && c <= 4) drawBlack = true;
-                if (r >= 2 && r <= 4 && c >= 16 && c <= 18) drawBlack = true;
-                if (r >= 16 && r <= 18 && c >= 2 && c <= 4) drawBlack = true;
-            }
-            else { if (dist(gen) > 50) drawBlack = true; }
-
-            if (drawBlack) {
-                DrawBox(x + c * cellSize, y + r * cellSize,
-                    x + (c + 1) * cellSize, y + (r + 1) * cellSize,
-                    GetColor(0, 0, 0), TRUE);
-            }
-        }
-    }
-}
-
 // ================= 数据结构 =================
 
 enum TitleState { STATE_TYPE_JP, STATE_SHOW_JP, STATE_DELETE_JP, STATE_BLANK_AFTER_JP, STATE_TYPE_EN, STATE_SHOW_EN, STATE_DELETE_EN, STATE_BLANK_AFTER_EN };

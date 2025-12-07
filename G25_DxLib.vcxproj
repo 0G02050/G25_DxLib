@@ -28,6 +28,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="mian.cpp" />
+    <ClCompile Include="PasswordTools.cpp" />
+    <ClCompile Include="qrcodegen.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="PasswordTools.h" />
+    <ClInclude Include="qrcodegen.hpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
