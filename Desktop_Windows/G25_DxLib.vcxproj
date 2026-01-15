@@ -27,7 +27,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="mian.cpp" />
+    <ClCompile Include="main.cpp" />
     <ClCompile Include="PasswordTools.cpp" />
     <ClCompile Include="qrcodegen.cpp" />
   </ItemGroup>
