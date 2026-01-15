@@ -1,83 +1,137 @@
 #include "DxLib.h"
 #include "PasswordTools.h"
-#include <string.h>
-#include <stdio.h>
 #include <string>
 #include <vector>
-#include <random>
-#include <functional>
-#include <time.h> // 用于生成唯一文件名
-// ================= 数据结构 =================
+#include <string.h>
+#include <stdio.h>
+#include <time.h> 
 
+// ================= 全局配置 =================
+const int SCREEN_W = 1920;
+const int SCREEN_H = 1080;
+const int WIN_W = 1280; // 窗口显示大小
+const int WIN_H = 720;
+
+// ================= 颜色配置 =================
+int COL_BG, COL_CARD, COL_BORDER, COL_ACCENT, COL_TEXT_MAIN, COL_TEXT_SUB, COL_INPUT_BG, COL_WARNING, COL_SUCCESS;
+
+void InitColors() {
+    COL_BG = GetColor(18, 18, 18);
+    COL_CARD = GetColor(28, 28, 30);
+    COL_BORDER = GetColor(58, 58, 60);
+    COL_ACCENT = GetColor(10, 132, 255);
+    COL_TEXT_MAIN = GetColor(255, 255, 255);
+    COL_TEXT_SUB = GetColor(142, 142, 147);
+    COL_INPUT_BG = GetColor(10, 10, 10);
+    COL_WARNING = GetColor(255, 69, 58);
+    COL_SUCCESS = GetColor(48, 209, 88);
+}
+
+// ================= 数据结构与加密 =================
 enum TitleState { STATE_TYPE_JP, STATE_SHOW_JP, STATE_DELETE_JP, STATE_BLANK_AFTER_JP, STATE_TYPE_EN, STATE_SHOW_EN, STATE_DELETE_EN, STATE_BLANK_AFTER_EN };
 enum FocusTarget { FOCUS_SEED, FOCUS_HINT };
 struct HintField { char text[128]; int len; };
 
-// ================= 主程序 =================
+const std::string SECRET_KEY = "user0001";
 
+std::string EncryptPassword(const char* rawPass) {
+    std::string result = "COLDVAULT:";
+    int keyLen = (int)SECRET_KEY.length();
+    int passLen = (int)strlen(rawPass);
+    char hexBuf[4];
+    for (int i = 0; i < passLen; i++) {
+        unsigned char encryptedChar = rawPass[i] ^ SECRET_KEY[i % keyLen];
+        sprintf_s(hexBuf, "%02X", encryptedChar);
+        result += hexBuf;
+    }
+    return result;
+}
+
+// ================= UI 绘制函数 =================
+void DrawRoundedBoxAA(float x, float y, float w, float h, float r, int color) {
+    DrawCircleAA(x + r, y + r, r, 64, color, TRUE);
+    DrawCircleAA(x + w - r, y + r, r, 64, color, TRUE);
+    DrawCircleAA(x + r, y + h - r, r, 64, color, TRUE);
+    DrawCircleAA(x + w - r, y + h - r, r, 64, color, TRUE);
+    DrawBoxAA(x, y + r, x + w + 1, y + h - r, color, TRUE);
+    DrawBoxAA(x + r, y, x + w - r, y + h + 1, color, TRUE);
+}
+
+void DrawRoundedBorderAA(float x, float y, float w, float h, float r, float borderW, int borderColor, int innerColor) {
+    DrawRoundedBoxAA(x, y, w, h, r, borderColor);
+    DrawRoundedBoxAA(x + borderW, y + borderW, w - borderW * 2, h - borderW * 2, r - 1, innerColor);
+}
+
+void DrawModernButton(int x, int y, int w, int h, const char* text, int font, bool isHover, int baseColor, int textColor, int textOffsetY = 0) {
+    int drawColor = isHover ? GetColor(64, 156, 255) : baseColor;
+    if (baseColor == COL_BORDER || baseColor == COL_WARNING) {
+        int inner = isHover ? GetColor(40, 44, 50) : COL_INPUT_BG;
+        DrawRoundedBorderAA(x, y, w, h, 8, 2, drawColor, inner);
+    }
+    else {
+        if (!isHover) {
+            SetDrawBlendMode(DX_BLENDMODE_ALPHA, 80);
+            DrawRoundedBoxAA(x + 2, y + 3, w, h, 8, GetColor(0, 0, 0));
+            SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+        }
+        DrawRoundedBoxAA(x, y, w, h, 8, drawColor);
+    }
+    int strW = GetDrawStringWidthToHandle(text, (int)strlen(text), font);
+    int strH = GetFontSizeToHandle(font);
+    DrawStringToHandle(x + (w - strW) / 2, y + (h - strH) / 2 + 2 + textOffsetY, text, textColor, font);
+}
+
+// ================= 主程序入口 =================
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
-    const int SCREEN_W = 1280;
-    const int SCREEN_H = 720;
-
+    SetWindowSizeChangeEnableFlag(TRUE, FALSE);
     ChangeWindowMode(TRUE);
     SetGraphMode(SCREEN_W, SCREEN_H, 32);
+    SetWindowSize(WIN_W, WIN_H);
+    SetWindowText("ColdVault Generator");
+    SetFullSceneAntiAliasingMode(4, 2);
+
     if (DxLib_Init() == -1) return -1;
 
     SetUseCharCodeFormat(DX_CHARCODEFORMAT_UTF8);
     SetDrawScreen(DX_SCREEN_BACK);
+    InitColors();
 
-    // 配色方案
-    const int COL_BG = GetColor(15, 17, 26);
-    const int COL_PANEL = GetColor(30, 34, 46);
-    const int COL_BORDER = GetColor(80, 90, 110);
-    const int COL_ACCENT = GetColor(0, 200, 255);
-    const int COL_TEXT = GetColor(230, 230, 230);
-    const int COL_PLACE = GetColor(120, 130, 150);
-    const int COL_INPUT_BG = GetColor(10, 12, 16);
-    const int COL_DISABLED = GetColor(60, 60, 70);
-    const int COL_SUCCESS = GetColor(50, 220, 100);
-    const int COL_WARNING = GetColor(255, 80, 80);   // 警告色 (红色)
+    // 字体资源
+    int fontTitle = CreateFontToHandle("Segoe UI", 56, 4, DX_FONTTYPE_ANTIALIASING_8X8);
+    int fontMedium = CreateFontToHandle("Segoe UI", 32, 4, DX_FONTTYPE_ANTIALIASING_8X8);
+    int fontMain = CreateFontToHandle("Segoe UI", 22, 4, DX_FONTTYPE_ANTIALIASING_8X8);
+    int fontSmall = CreateFontToHandle("Segoe UI", 18, 4, DX_FONTTYPE_ANTIALIASING_8X8);
+    int fontCode = CreateFontToHandle("Consolas", 26, 4, DX_FONTTYPE_ANTIALIASING_8X8);
 
-    // 字体加载
-    int fontTitle = CreateFontToHandle(NULL, 64, 4, DX_FONTTYPE_ANTIALIASING_8X8);
-    int fontMedium = CreateFontToHandle(NULL, 40, 4, DX_FONTTYPE_ANTIALIASING_8X8);
-    int fontMain = CreateFontToHandle(NULL, 24, 4, DX_FONTTYPE_ANTIALIASING_8X8);
-    int fontSmall = CreateFontToHandle(NULL, 18, 4, DX_FONTTYPE_ANTIALIASING_8X8);
-    int titleFontSize = GetFontSizeToHandle(fontTitle);
-
-    // 标题动画变量
+    // 动画状态
     const char* titleJP = "オフライン暗号室";
     const char* titleEN = "ColdVault Protocol";
     int lenJPBytes = (int)strlen(titleJP);
     int lenENChars = (int)strlen(titleEN);
     TitleState state = STATE_TYPE_JP;
-    int frameCounter = 0; int waitCounter = 0;
-    int visibleJPBytes = 0; int visibleENChars = 0;
-    const int STEP_TYPE = 8; const int STEP_DELETE = 4;
-    const int WAIT_SHOW = 300; const int WAIT_BLANK = 30;
+    int frameCounter = 0, waitCounter = 0, visibleJPBytes = 0, visibleENChars = 0;
+    const int STEP_TYPE = 6, STEP_DELETE = 3, WAIT_SHOW = 200, WAIT_BLANK = 20;
 
-    // 核心数据
+    // 业务数据
     char seedText[256] = { 0 }; int seedLen = 0;
     int passLen = 16;
     HintField hints[16];
     int hintCount = 1;
     for (int i = 0; i < 16; i++) { hints[i].text[0] = '\0'; hints[i].len = 0; }
 
-    // 交互状态
     FocusTarget focusTarget = FOCUS_SEED;
     int focusHintIndex = 0;
     int cursorTimer = 0;
     bool showResult = false;
-    char generatedPass[128] = { 0 };
-    int saveMsgTimer = 0; // 保存成功的提示倒计时
 
-    // 输入控制
+    char generatedPass[128] = { 0 };
+    std::string cachedEncryptedData = ""; //  缓存变量：解决内存暴涨的关键
+
+    int saveMsgTimer = 0;
     int lastMouseInput = 0;
-    char keyState[256] = { 0 }; char prevKeyState[256] = { 0 };
 
     while (ProcessMessage() == 0) {
         if (CheckHitKey(KEY_INPUT_ESCAPE)) break;
-        memcpy(prevKeyState, keyState, 256); GetHitKeyStateAll(keyState);
         int mouseInput = GetMouseInput();
         int mouseX, mouseY; GetMousePoint(&mouseX, &mouseY);
         bool mouseDown = (mouseInput & MOUSE_INPUT_LEFT) != 0;
@@ -87,7 +141,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         frameCounter++; cursorTimer++;
         if (saveMsgTimer > 0) saveMsgTimer--;
 
-        // ------------------ 动画逻辑 ------------------
+        // 标题打字机动画
         switch (state) {
         case STATE_TYPE_JP: if (frameCounter >= STEP_TYPE) { frameCounter = 0; if (visibleJPBytes < lenJPBytes) visibleJPBytes += 3; else { state = STATE_SHOW_JP; waitCounter = 0; } } break;
         case STATE_SHOW_JP: if (++waitCounter > WAIT_SHOW) { waitCounter = 0; frameCounter = 0; state = STATE_DELETE_JP; } break;
@@ -99,259 +153,179 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
         case STATE_BLANK_AFTER_EN: if (++waitCounter > WAIT_BLANK) { waitCounter = 0; frameCounter = 0; visibleJPBytes = 0; state = STATE_TYPE_JP; } break;
         }
 
-        // ------------------ 布局参数 ------------------
+        // 布局参数
         const int PADDING = 40;
-        int panelX = PADDING; int panelY = 120;
-        int panelW = SCREEN_W - PADDING * 2; int panelH = SCREEN_H - panelY - PADDING;
-        int contentX = panelX + PADDING; int contentW = panelW - PADDING * 2;
+        int panelX = PADDING, panelY = 100;
+        int panelW = SCREEN_W - PADDING * 2, panelH = SCREEN_H - panelY - PADDING;
+        int contentX = panelX + PADDING, contentW = panelW - PADDING * 2;
 
-        int seedY = panelY + PADDING; int seedH = 50;
-        int lenY = seedY + seedH + 30; int lenBtnSize = 40;
-        int hintHeaderY = lenY + 60;
-        int hintBtnSize = 30;
-        int genBtnH = 60;
-        int genBtnY = panelY + panelH - genBtnH - 20;
-        int listY = hintHeaderY + 40;
-        int listMaxH = genBtnY - listY - 20;
-        int itemH = 45; int itemGap = 5;
-        int maxVisibleHints = listMaxH / (itemH + itemGap);
-        if (maxVisibleHints < 1) maxVisibleHints = 1;
+        int seedY = panelY + 40, seedH = 50;
+        int lenY = seedY + seedH + 30, lenBtnSize = 40;
+        int hintHeaderY = lenY + 50, hintBtnSize = 35;
+        int genBtnH = 60, genBtnY = panelY + panelH - genBtnH - 30;
+        int listY = hintHeaderY + 45, itemH = 45, itemGap = 6;
 
-        int lenMinusX = contentX + 160; int lenPlusX = lenMinusX + 160;
-        int hintCtrlX = contentX + contentW - 200;
-        int hintMinusX = hintCtrlX; int hintPlusX = hintCtrlX + 60;
+        int lenMinusX = contentX + 200, lenPlusX = lenMinusX + 140;
+        int hintCtrlX = contentX + contentW - 220, hintMinusX = hintCtrlX, hintPlusX = hintCtrlX + 70;
 
-        // ================= 输入交互逻辑 =================
+        // ================= 输入交互 =================
         if (!showResult) {
-            // 鼠标点击逻辑
             if (mouseClick) {
                 if (mouseX >= contentX && mouseX <= contentX + contentW && mouseY >= seedY && mouseY <= seedY + seedH) focusTarget = FOCUS_SEED;
-                if (mouseX >= lenMinusX && mouseX <= lenMinusX + lenBtnSize && mouseY >= lenY && mouseY <= lenY + lenBtnSize) if (passLen > 4) passLen--;
-                if (mouseX >= lenPlusX && mouseX <= lenPlusX + lenBtnSize && mouseY >= lenY && mouseY <= lenY + lenBtnSize) if (passLen < 64) passLen++;
-                if (mouseX >= hintMinusX && mouseX <= hintMinusX + hintBtnSize && mouseY >= hintHeaderY && mouseY <= hintHeaderY + hintBtnSize) {
-                    if (hintCount > 1) { hintCount--; if (focusTarget == FOCUS_HINT && focusHintIndex >= hintCount) focusHintIndex = hintCount - 1; }
+                if (mouseX >= lenMinusX && mouseX <= lenMinusX + lenBtnSize && mouseY >= lenY && mouseY <= lenY + lenBtnSize && passLen > 4) passLen--;
+                if (mouseX >= lenPlusX && mouseX <= lenPlusX + lenBtnSize && mouseY >= lenY && mouseY <= lenY + lenBtnSize && passLen < 64) passLen++;
+                if (mouseX >= hintMinusX && mouseX <= hintMinusX + hintBtnSize && mouseY >= hintHeaderY && mouseY <= hintHeaderY + hintBtnSize && hintCount > 1) {
+                    hintCount--; if (focusTarget == FOCUS_HINT && focusHintIndex >= hintCount) focusHintIndex = hintCount - 1;
                 }
-                if (mouseX >= hintPlusX && mouseX <= hintPlusX + hintBtnSize && mouseY >= hintHeaderY && mouseY <= hintHeaderY + hintBtnSize) {
-                    if (hintCount < maxVisibleHints) { hints[hintCount].text[0] = '\0'; hints[hintCount].len = 0; hintCount++; focusTarget = FOCUS_HINT; focusHintIndex = hintCount - 1; }
+                if (mouseX >= hintPlusX && mouseX <= hintPlusX + hintBtnSize && mouseY >= hintHeaderY && mouseY <= hintHeaderY + hintBtnSize && hintCount < 16) {
+                    hints[hintCount].text[0] = '\0'; hints[hintCount].len = 0; hintCount++; focusTarget = FOCUS_HINT; focusHintIndex = hintCount - 1;
                 }
+                // 点击生成按钮
                 if (mouseX >= contentX && mouseX <= contentX + contentW && mouseY >= genBtnY && mouseY <= genBtnY + genBtnH) {
                     std::string all; for (int i = 0; i < hintCount; i++) { all += hints[i].text; all += "|"; }
-                    GeneratePassword(seedText, all.c_str(), passLen, generatedPass, sizeof(generatedPass)); showResult = true;
-                    saveMsgTimer = 0; // 重置保存提示
+                    GeneratePassword(seedText, all.c_str(), passLen, generatedPass, sizeof(generatedPass));
+
+                    // ✅ 关键修复：只在点击时计算一次，防止内存泄露
+                    cachedEncryptedData = EncryptPassword(generatedPass);
+
+                    showResult = true; saveMsgTimer = 0;
                 }
                 if (mouseX >= contentX && mouseX <= contentX + contentW && mouseY >= listY && mouseY <= listY + hintCount * (itemH + itemGap)) {
                     int idx = (mouseY - listY) / (itemH + itemGap);
                     if (idx >= 0 && idx < hintCount) { focusTarget = FOCUS_HINT; focusHintIndex = idx; }
                 }
             }
-
-            // ================= 键盘输入逻辑 (修复版) =================
-            char* targetBuf = NULL;
-            int* targetLen = NULL;
-            int maxS = 0;
-
-            // 确定当前输入焦点
-            if (focusTarget == FOCUS_SEED) {
-                targetBuf = seedText; targetLen = &seedLen; maxS = sizeof(seedText);
-            }
-            else {
-                targetBuf = hints[focusHintIndex].text; targetLen = &hints[focusHintIndex].len; maxS = sizeof(hints[focusHintIndex].text);
-            }
-
-            // 使用 GetInputChar 处理所有输入
+            // 键盘处理
+            char* targetBuf = NULL; int* targetLen = NULL; int maxS = 0;
+            if (focusTarget == FOCUS_SEED) { targetBuf = seedText; targetLen = &seedLen; maxS = sizeof(seedText); }
+            else { targetBuf = hints[focusHintIndex].text; targetLen = &hints[focusHintIndex].len; maxS = sizeof(hints[focusHintIndex].text); }
             char c;
             while ((c = GetInputChar(TRUE)) != 0) {
-                // 处理退格键 (Backspace ASCII = 8)
-                if (c == 8) {
-                    if (*targetLen > 0) {
-                        (*targetLen)--;
-                        targetBuf[*targetLen] = '\0';
-                    }
-                }
-                // 处理可打印字符 (ASCII 32空格 ~ 126波浪号)
-                else if (c >= 32 && c <= 126) {
-                    if (*targetLen < maxS - 1) {
-                        targetBuf[*targetLen] = c;
-                        (*targetLen)++;
-                        targetBuf[*targetLen] = '\0';
-                    }
-                }
+                if (c == 8 && *targetLen > 0) { (*targetLen)--; targetBuf[*targetLen] = '\0'; }
+                else if (c >= 32 && c <= 126 && *targetLen < maxS - 1) { targetBuf[*targetLen] = c; (*targetLen)++; targetBuf[*targetLen] = '\0'; }
             }
         }
 
-        // ================= 绘图 (Drawing) =================
+        // ================= 画面绘制 =================
         ClearDrawScreen();
         DrawBox(0, 0, SCREEN_W, SCREEN_H, COL_BG, TRUE);
 
+        // 标题
         char tBuf[64] = { 0 };
-        if (state <= STATE_BLANK_AFTER_JP) { for (int i = 0; i < visibleJPBytes; i++) tBuf[i] = titleJP[i]; }
-        else { for (int i = 0; i < visibleENChars; i++) tBuf[i] = titleEN[i]; }
-        DrawStringToHandle(panelX, 40, tBuf, COL_TEXT, fontTitle);
+        if (state <= STATE_BLANK_AFTER_JP) for (int i = 0; i < visibleJPBytes; i++) tBuf[i] = titleJP[i];
+        else for (int i = 0; i < visibleENChars; i++) tBuf[i] = titleEN[i];
+        DrawStringToHandle(panelX, 35, tBuf, COL_TEXT_MAIN, fontTitle);
 
-        DrawBox(panelX, panelY, panelX + panelW, panelY + panelH, COL_PANEL, TRUE);
-        DrawBox(panelX, panelY, panelX + panelW, panelY + panelH, COL_BORDER, FALSE);
+        // 主面板
+        DrawRoundedBorderAA(panelX, panelY, panelW, panelH, 16, 2, COL_BORDER, COL_CARD);
 
-        // 1. Seed Input
-        DrawStringToHandle(contentX, seedY - 25, "Seed Phrase (Master Key)", COL_PLACE, fontSmall);
-        DrawBox(contentX, seedY, contentX + contentW, seedY + seedH, COL_INPUT_BG, TRUE);
-        DrawBox(contentX, seedY, contentX + contentW, seedY + seedH, focusTarget == FOCUS_SEED ? COL_ACCENT : COL_BORDER, FALSE);
+        // Seed
+        DrawStringToHandle(contentX, seedY - 25, "Master Key Phrase", COL_TEXT_SUB, fontSmall);
+        int inputBorderCol = (focusTarget == FOCUS_SEED) ? COL_ACCENT : COL_BORDER;
+        DrawRoundedBorderAA(contentX, seedY, contentW, seedH, 8, 2, inputBorderCol, COL_INPUT_BG);
+
         int ty = seedY + (seedH - GetFontSizeToHandle(fontMain)) / 2;
-        if (seedLen > 0) DrawStringToHandle(contentX + 10, ty, seedText, COL_TEXT, fontMain);
-        else DrawStringToHandle(contentX + 10, ty, "Type your secret phrase...", COL_PLACE, fontMain);
+        if (seedLen > 0) DrawStringToHandle(contentX + 15, ty, seedText, COL_TEXT_MAIN, fontMain);
+        else DrawStringToHandle(contentX + 15, ty, "Type your secret phrase here...", COL_TEXT_SUB, fontMain);
 
-        if (focusTarget == FOCUS_SEED && (cursorTimer / 60) % 2 == 0 && !showResult) {
+        if (focusTarget == FOCUS_SEED && (cursorTimer / 30) % 2 == 0 && !showResult) {
             int tw = GetDrawStringWidthToHandle(seedText, seedLen, fontMain);
-            DrawLine(contentX + 10 + tw, ty, contentX + 10 + tw, ty + 24, COL_ACCENT, 2);
+            DrawLine(contentX + 15 + tw, ty, contentX + 15 + tw, ty + 24, COL_ACCENT, 2);
         }
 
-        // 2. Length Control
-        DrawStringToHandle(contentX, lenY + 5, "Password Length", COL_PLACE, fontSmall);
-        auto DrawBtn = [&](int x, int y, const char* t, bool active) {
-            DrawBox(x, y, x + lenBtnSize, y + lenBtnSize, COL_INPUT_BG, TRUE);
-            DrawBox(x, y, x + lenBtnSize, y + lenBtnSize, active ? COL_BORDER : COL_DISABLED, FALSE);
-            int lw = GetDrawStringWidthToHandle(t, strlen(t), fontMain);
-            DrawStringToHandle(x + (lenBtnSize - lw) / 2, y + (lenBtnSize - 24) / 2, t, active ? COL_TEXT : COL_DISABLED, fontMain);
-            };
-        DrawBtn(lenMinusX, lenY, "-", passLen > 4);
-        DrawBtn(lenPlusX, lenY, "+", passLen < 64);
-
+        // Length
+        DrawStringToHandle(contentX, lenY + 8, "Password Length", COL_TEXT_SUB, fontSmall);
+        bool hoverLenMinus = (mouseX >= lenMinusX && mouseX <= lenMinusX + lenBtnSize && mouseY >= lenY && mouseY <= lenY + lenBtnSize);
+        DrawModernButton(lenMinusX, lenY, lenBtnSize, lenBtnSize, "-", fontMain, hoverLenMinus, COL_BORDER, COL_TEXT_MAIN, -2);
+        bool hoverLenPlus = (mouseX >= lenPlusX && mouseX <= lenPlusX + lenBtnSize && mouseY >= lenY && mouseY <= lenY + lenBtnSize);
+        DrawModernButton(lenPlusX, lenY, lenBtnSize, lenBtnSize, "+", fontMain, hoverLenPlus, COL_BORDER, COL_TEXT_MAIN, -1);
         char lb[16]; sprintf_s(lb, "%d", passLen);
         int lbW = GetDrawStringWidthToHandle(lb, strlen(lb), fontMedium);
-        int lbH = GetFontSizeToHandle(fontMedium);
-        int centerAreaStart = lenMinusX + lenBtnSize;
-        int centerAreaWidth = lenPlusX - centerAreaStart;
-        int lbX = centerAreaStart + (centerAreaWidth - lbW) / 2;
-        int lbY = lenY + (lenBtnSize - lbH) / 2 + 2;
-        DrawStringToHandle(lbX, lbY, lb, COL_ACCENT, fontMedium);
+        DrawStringToHandle(lenMinusX + lenBtnSize + (lenPlusX - (lenMinusX + lenBtnSize) - lbW) / 2, lenY - 4, lb, COL_ACCENT, fontMedium);
 
-        // 3. Hint Header
-        DrawStringToHandle(contentX, hintHeaderY, "Hints", COL_PLACE, fontSmall);
-        char hcb[32];
-        if (hintCount >= maxVisibleHints) sprintf_s(hcb, "Full (%d/%d)", hintCount, maxVisibleHints);
-        else sprintf_s(hcb, "Count: %d", hintCount);
-        DrawStringToHandle(hintPlusX + hintBtnSize + 10, hintHeaderY + 5, hcb, (hintCount >= maxVisibleHints) ? COL_ACCENT : COL_PLACE, fontSmall);
+        // Hints
+        DrawStringToHandle(contentX, hintHeaderY, "Context Hints", COL_TEXT_SUB, fontSmall);
+        char hcb[32]; sprintf_s(hcb, "%d / 16", hintCount);
+        DrawStringToHandle(hintPlusX + hintBtnSize + 15, hintHeaderY + 5, hcb, COL_TEXT_SUB, fontSmall);
+        bool hoverHintMinus = (mouseX >= hintMinusX && mouseX <= hintMinusX + hintBtnSize && mouseY >= hintHeaderY && mouseY <= hintHeaderY + hintBtnSize);
+        DrawModernButton(hintMinusX, hintHeaderY, hintBtnSize, hintBtnSize, "-", fontSmall, hoverHintMinus, COL_BORDER, COL_TEXT_MAIN, -2);
+        bool hoverHintPlus = (mouseX >= hintPlusX && mouseX <= hintPlusX + hintBtnSize && mouseY >= hintHeaderY && mouseY <= hintHeaderY + hintBtnSize);
+        DrawModernButton(hintPlusX, hintHeaderY, hintBtnSize, hintBtnSize, "+", fontSmall, hoverHintPlus, COL_BORDER, COL_TEXT_MAIN, -1);
 
-        DrawBtn(hintMinusX, hintHeaderY, "-", hintCount > 1);
-        DrawBtn(hintPlusX, hintHeaderY, "+", hintCount < maxVisibleHints);
-
-        // 4. Hint List
         for (int i = 0; i < hintCount; i++) {
             int y = listY + i * (itemH + itemGap);
-            int hCol = (focusTarget == FOCUS_HINT && focusHintIndex == i) ? COL_ACCENT : COL_BORDER;
-
-            DrawBox(contentX, y, contentX + contentW, y + itemH, COL_INPUT_BG, TRUE);
-            DrawBox(contentX, y, contentX + contentW, y + itemH, hCol, FALSE);
-
+            bool isFocus = (focusTarget == FOCUS_HINT && focusHintIndex == i);
+            if (isFocus) DrawRoundedBorderAA(contentX, y, contentW, itemH, 6, 2, COL_ACCENT, COL_INPUT_BG);
+            else DrawRoundedBoxAA(contentX, y, contentW, itemH, 6, COL_INPUT_BG);
             int hy = y + (itemH - GetFontSizeToHandle(fontMain)) / 2;
-            if (hints[i].len > 0) DrawStringToHandle(contentX + 10, hy, hints[i].text, COL_TEXT, fontMain);
-            else DrawStringToHandle(contentX + 10, hy, "e.g. Gmail, Steam...", COL_PLACE, fontMain);
-
-            if (focusTarget == FOCUS_HINT && focusHintIndex == i && (cursorTimer / 60) % 2 == 0 && !showResult) {
+            if (hints[i].len > 0) DrawStringToHandle(contentX + 15, hy, hints[i].text, COL_TEXT_MAIN, fontMain);
+            else DrawStringToHandle(contentX + 15, hy, "e.g. 'Gmail', 'Bank'...", COL_TEXT_SUB, fontMain);
+            if (isFocus && (cursorTimer / 30) % 2 == 0 && !showResult) {
                 int tw = GetDrawStringWidthToHandle(hints[i].text, hints[i].len, fontMain);
-                DrawLine(contentX + 10 + tw, hy, contentX + 10 + tw, hy + 24, COL_ACCENT, 2);
+                DrawLine(contentX + 15 + tw, hy, contentX + 15 + tw, hy + 24, COL_ACCENT, 2);
             }
         }
 
-        // 5. Generate Button
-        int genCol = COL_BORDER;
-        if (mouseX >= contentX && mouseX <= contentX + contentW && mouseY >= genBtnY && mouseY <= genBtnY + genBtnH) genCol = COL_ACCENT;
-        DrawBox(contentX, genBtnY, contentX + contentW, genBtnY + genBtnH, COL_INPUT_BG, TRUE);
-        DrawBox(contentX, genBtnY, contentX + contentW, genBtnY + genBtnH, genCol, FALSE);
-        DrawStringToHandle(contentX + (contentW - 200) / 2, genBtnY + 18, "GENERATE PASSWORD", genCol, fontMain);
+        // Gen Button
+        bool hoverGen = (mouseX >= contentX && mouseX <= contentX + contentW && mouseY >= genBtnY && mouseY <= genBtnY + genBtnH);
+        DrawModernButton(contentX, genBtnY, contentW, genBtnH, "GENERATE PASSWORD", fontMain, hoverGen, COL_ACCENT, COL_TEXT_MAIN, 0);
 
-        // ================= 结果弹窗 (Result Popup) =================
+        // ================= 结果弹窗 =================
         if (showResult) {
-            // 半透明遮罩
-            SetDrawBlendMode(DX_BLENDMODE_ALPHA, 240); // 加深一点
-            DrawBox(0, 0, SCREEN_W, SCREEN_H, GetColor(5, 5, 10), TRUE);
+            SetDrawBlendMode(DX_BLENDMODE_ALPHA, 200);
+            DrawBox(0, 0, SCREEN_W, SCREEN_H, GetColor(0, 0, 0), TRUE);
             SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
 
-            // 弹窗参数
-            int rw = 700; int rh = 600;
-            int rx = (SCREEN_W - rw) / 2;
-            int ry = (SCREEN_H - rh) / 2;
+            int rw = 640, rh = 640;
+            int rx = (SCREEN_W - rw) / 2, ry = (SCREEN_H - rh) / 2;
 
-            // 弹窗背景
-            DrawBox(rx, ry, rx + rw, ry + rh, COL_PANEL, TRUE);
-            DrawBox(rx, ry, rx + rw, ry + rh, COL_ACCENT, FALSE);
+            DrawRoundedBorderAA(rx, ry, rw, rh, 16, 2, COL_BORDER, COL_CARD);
+            DrawStringToHandle(rx + 40, ry + 30, "Generated Securely", COL_TEXT_SUB, fontSmall);
 
-            // 标题
-            DrawStringToHandle(rx + 40, ry + 40, "SECURE TOKEN GENERATED", COL_PLACE, fontSmall);
+            int passBoxH = 80, passBoxY = ry + 60;
+            DrawRoundedBoxAA(rx + 40, passBoxY, rw - 80, passBoxH, 12, COL_INPUT_BG);
+            int passW = GetDrawStringWidthToHandle(generatedPass, strlen(generatedPass), fontCode);
+            DrawStringToHandle(rx + (rw - passW) / 2, passBoxY + (passBoxH - 30) / 2, generatedPass, COL_ACCENT, fontCode);
 
-            // 密码显示框 (居中、大号)
-            int passBoxH = 80;
-            int passBoxY = ry + 80;
-            DrawBox(rx + 40, passBoxY, rx + rw - 40, passBoxY + passBoxH, COL_INPUT_BG, TRUE);
-            DrawBox(rx + 40, passBoxY, rx + rw - 40, passBoxY + passBoxH, COL_BORDER, FALSE);
+            int qrSize = 280, qrY = passBoxY + passBoxH + 30;
 
-            // 计算密码文字宽度以居中
-            int passW = GetDrawStringWidthToHandle(generatedPass, strlen(generatedPass), fontMedium);
-            DrawStringToHandle(rx + (rw - passW) / 2, passBoxY + (passBoxH - 40) / 2, generatedPass, COL_ACCENT, fontMedium);
+            // ✅ 关键修复：直接使用缓存的字符串进行绘制，不再每帧重复计算
+            int qrX = rx + (rw - qrSize) / 2;
+            DrawFakeQRCode(qrX, qrY, qrSize, cachedEncryptedData.c_str());
 
-            // 二维码
-            int qrSize = 250;
-            int qrY = passBoxY + passBoxH + 40;
-            DrawFakeQRCode(rx + (rw - qrSize) / 2, qrY, qrSize, generatedPass);
+            DrawStringToHandle(qrX + 40, qrY + qrSize + 10, "Scan with ColdVault App", COL_TEXT_SUB, fontSmall);
 
-            // 底部按钮区域
-            int btnY = qrY + qrSize + 40;
-            int btnW = 200;
-            int btnH = 50;
-            int gap = 40;
+            int btnY = qrY + qrSize + 50;
+            int btnW = 160, btnH = 50, gap = 20;
             int startX = rx + (rw - (btnW * 2 + gap)) / 2;
-            int saveX = startX;
+
+            bool hoverSave = (mouseX >= startX && mouseX <= startX + btnW && mouseY >= btnY && mouseY <= btnY + btnH);
+            DrawModernButton(startX, btnY, btnW, btnH, "SAVE IMAGE", fontMain, hoverSave, COL_BORDER, COL_TEXT_MAIN, 0);
+
             int closeX = startX + btnW + gap;
-
-            // Save Button
-            bool hoverSave = (mouseX >= saveX && mouseX <= saveX + btnW && mouseY >= btnY && mouseY <= btnY + btnH);
-            DrawBox(saveX, btnY, saveX + btnW, btnY + btnH, COL_INPUT_BG, TRUE);
-            DrawBox(saveX, btnY, saveX + btnW, btnY + btnH, hoverSave ? COL_ACCENT : COL_BORDER, FALSE);
-
-            const char* saveTxt = "SAVE IMAGE";
-            int sw = GetDrawStringWidthToHandle(saveTxt, strlen(saveTxt), fontMain);
-            DrawStringToHandle(saveX + (btnW - sw) / 2, btnY + 12, saveTxt, COL_TEXT, fontMain);
-
-            // Close Button
             bool hoverClose = (mouseX >= closeX && mouseX <= closeX + btnW && mouseY >= btnY && mouseY <= btnY + btnH);
-            DrawBox(closeX, btnY, closeX + btnW, btnY + btnH, COL_INPUT_BG, TRUE);
-            DrawBox(closeX, btnY, closeX + btnW, btnY + btnH, hoverClose ? COL_WARNING : COL_BORDER, FALSE);
+            DrawModernButton(closeX, btnY, btnW, btnH, "CLOSE", fontMain, hoverClose, COL_WARNING, COL_TEXT_MAIN, 0);
 
-            const char* closeTxt = "CLOSE";
-            int cw = GetDrawStringWidthToHandle(closeTxt, strlen(closeTxt), fontMain);
-            DrawStringToHandle(closeX + (btnW - cw) / 2, btnY + 12, closeTxt, COL_TEXT, fontMain);
-
-            // 保存成功的提示 (显示2秒)
             if (saveMsgTimer > 0) {
-                const char* msg = "FILE SAVED SUCCESSFULLY!";
+                const char* msg = "Saved to folder!";
                 int mw = GetDrawStringWidthToHandle(msg, strlen(msg), fontMain);
                 DrawStringToHandle(rx + (rw - mw) / 2, btnY + btnH + 15, msg, COL_SUCCESS, fontMain);
             }
 
-            // 处理结果界面的点击
             if (mouseClick) {
-                // 点击 Save
                 if (hoverSave) {
-                    char filename[64];
-                    // 使用时间戳防止覆盖
-                    sprintf_s(filename, "Password_%ld.png", time(NULL));
-                    // 临时隐藏鼠标，防止截图中出现鼠标
-                    SetMouseDispFlag(FALSE);
-                    ScreenFlip(); // 刷新一帧确保没有鼠标
+                    char filename[64]; sprintf_s(filename, "Pass_%ld.png", time(NULL));
+                    SetMouseDispFlag(FALSE); ScreenFlip();
                     SaveDrawScreenToPNG(0, 0, SCREEN_W, SCREEN_H, filename);
-                    SetMouseDispFlag(TRUE);
-                    saveMsgTimer = 120; // 显示2秒 (60fps * 2)
+                    SetMouseDispFlag(TRUE); saveMsgTimer = 120;
                 }
-                // 点击 Close
-                if (hoverClose) {
-                    showResult = false;
-                }
+                if (hoverClose) showResult = false;
             }
         }
-
         ScreenFlip();
     }
 
-    DeleteFontToHandle(fontTitle); DeleteFontToHandle(fontMedium); DeleteFontToHandle(fontMain); DeleteFontToHandle(fontSmall);
+    DeleteFontToHandle(fontTitle); DeleteFontToHandle(fontMedium); DeleteFontToHandle(fontMain); DeleteFontToHandle(fontSmall); DeleteFontToHandle(fontCode);
     DxLib_End();
     return 0;
 }
