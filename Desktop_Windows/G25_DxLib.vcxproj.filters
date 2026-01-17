@@ -16,24 +16,39 @@
     <Filter Include="Utils">
       <UniqueIdentifier>{dffb53b5-2096-40c5-b4d0-7e5e5067857c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="External">
+      <UniqueIdentifier>{65f7ca91-d2e1-4f20-a170-6b62ac9070eb}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="PasswordTools.cpp">
+    <ClCompile Include="External\qrcodegen.cpp">
+      <Filter>External</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils\UIComponents.cpp">
       <Filter>Utils</Filter>
     </ClCompile>
-    <ClCompile Include="qrcodegen.cpp">
-      <Filter>ソース ファイル</Filter>
+    <ClCompile Include="Utils\PasswordTools.cpp">
+      <Filter>Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils\AppStyle.cpp">
+      <Filter>Utils</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="PasswordTools.h">
+    <ClInclude Include="External\qrcodegen.hpp">
+      <Filter>External</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\AppStyle.h">
       <Filter>Utils</Filter>
     </ClInclude>
-    <ClInclude Include="qrcodegen.hpp">
-      <Filter>ソース ファイル</Filter>
+    <ClInclude Include="Utils\UIComponents.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\PasswordTools.h">
+      <Filter>Utils</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
