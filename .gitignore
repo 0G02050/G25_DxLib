@@ -379,3 +379,18 @@ DerivedData
 *.hmap
 *.ipa
 *.xcuserstate
+# =======================================================
+# Custom Rules for DxLib (MyGame)
+# =======================================================
+
+# 1. 首先忽略所有的库文件（防止编译生成的垃圾文件被上传）
+*.lib
+*.dll
+
+# 2. 【关键】但是！强制保留 External 文件夹下的所有内容
+!External/
+!External/**
+
+# 3. 再次显式强制保留 External 里的 lib 和 dll (双重保险)
+!External/**/*.lib
+!External/**/*.dll

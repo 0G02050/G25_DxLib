@@ -1,16 +1,16 @@
-#include "AppStyle.h" // 引用自己的头文件
+#include "AppStyle.h" // 自ヘッダーのインクルード
 
 namespace AppStyle {
-    // 这里才是真正的定义
+    // 定数の実体定義
     const int SCREEN_W = 1920;
     const int SCREEN_H = 1080;
     const int WIN_W = 1280;
     const int WIN_H = 720;
 
-    // 定义对象
+    // カラーパレットオブジェクトの実体
     Palette Colors;
 
-    // 实现 Init 函数
+    // Init関数の実装
     void Palette::Init() {
         BG = GetColor(18, 18, 18);
         CARD = GetColor(28, 28, 30);

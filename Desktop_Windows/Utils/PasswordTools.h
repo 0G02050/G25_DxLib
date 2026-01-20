@@ -3,21 +3,23 @@
 #include <vector>
 
 namespace SecureLogic {
-    // 1. 生成会话 ID (示例功能)
+    // 1. セッションIDの生成 (サンプル機能)
     std::string GenerateSessionID();
-    // 获取提示词 (读)
+
+    // ヒントプレースホルダーの取得 (Read)
     const char* GetHintPlaceholder();
-    // 【新增】修改提示词 (写)
+
+    // ヒントプレースホルダーの更新 (Write)
     void SetHintPlaceholder(const char* newText);
 
-    // 2. 生成密码 (核心算法)
-    // seedStr: 主密钥
-    // extraHint: 提示词组合
-    // length: 密码长度
-    // outBuffer: 接收结果的数组
-    // outBufferSize: 数组最大长度
+    // 2. パスワード生成 (コアアルゴリズム)
+    // seedStr: マスターキー
+    // extraHint: ヒント文字列の組み合わせ
+    // length: パスワード長
+    // outBuffer: 出力用バッファ
+    // outBufferSize: バッファ最大サイズ
     void GeneratePassword(const char* seedStr, const char* extraHint, int length, char* outBuffer, int outBufferSize);
 
-    // 3. 加密密码 (用于生成二维码)
+    // 3. パスワード暗号化 (QRコード生成用)
     std::string EncryptForQRCode(const char* rawPass);
 }

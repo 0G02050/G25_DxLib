@@ -2,7 +2,7 @@
 #include "DxLib.h"
 
 namespace AppStyle {
-    // 使用 extern 告诉编译器：这些变量在“别的地方”定义了，这里只是引用
+    // extern宣言：実体は「別の場所（.cpp）」で定義されており、ここは参照のみ
     extern const int SCREEN_W;
     extern const int SCREEN_H;
     extern const int WIN_W;
@@ -10,9 +10,9 @@ namespace AppStyle {
 
     struct Palette {
         int BG, CARD, BORDER, ACCENT, TEXT_MAIN, TEXT_SUB, INPUT_BG, WARNING, SUCCESS, QR_BG;
-        void Init(); // 这里只写函数名，不写里面的代码
+        void Init(); // プロトタイプ宣言（実装は.cppに記述）
     };
 
-    // 声明全局共用的颜色对象
+    // グローバル共有カラーオブジェクトの宣言
     extern Palette Colors;
 }

@@ -1,5 +1,5 @@
 #include "UIComponents.h"
-#include "../External/qrcodegen.hpp" // 引用二维码库
+#include "../External/qrcodegen.hpp" // QRコードライブラリのインクルード
 using namespace qrcodegen;
 
 namespace UI {
@@ -38,11 +38,11 @@ namespace UI {
         }
     }
 
-    // 修改后的 DrawModernButton，支持上下(Y)和左右(X)微调
+    // 修正版 DrawModernButton：上下(Y)・左右(X)の微調整に対応
     void DrawModernButton(int x, int y, int w, int h, const char* text, int font, bool isHover, int baseColor, int textColor, int textOffsetY, int textOffsetX) {
         int drawColor = isHover ? GetColor(64, 156, 255) : baseColor;
 
-        // 绘制按钮背景
+        // ボタン背景の描画
         if (baseColor == AppStyle::Colors.BORDER || baseColor == AppStyle::Colors.WARNING) {
             int inner = isHover ? GetColor(40, 44, 50) : AppStyle::Colors.INPUT_BG;
             DrawRoundedBorderAA(x, y, w, h, 8, 2, drawColor, inner);
@@ -56,15 +56,15 @@ namespace UI {
             DrawRoundedBoxAA(x, y, w, h, 8, drawColor);
         }
 
-        // 计算文字宽高
+        // テキストの幅と高さを計算
         int strW = GetDrawStringWidthToHandle(text, (int)strlen(text), font);
         int strH = GetFontSizeToHandle(font);
 
-        // calculate X: 居中位置 + textOffsetX
-        // calculate Y: 居中位置 + 2(视觉修正) + textOffsetY
+        // X座標計算: 中央揃え + Xオフセット
+        // Y座標計算: 中央揃え + 2(視覚補正) + Yオフセット
         DrawStringToHandle(
-            x + (w - strW) / 2 + textOffsetX,       // <--- 这里加了 X 偏移
-            y + (h - strH) / 2 + 2 + textOffsetY,   // <--- 这里是 Y 偏移
+            x + (w - strW) / 2 + textOffsetX,       // <--- Xオフセットを加算
+            y + (h - strH) / 2 + 2 + textOffsetY,   // <--- Yオフセットを加算
             text, textColor, font
         );
     }
